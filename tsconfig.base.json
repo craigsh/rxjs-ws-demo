@@ -16,7 +16,9 @@
 		"baseUrl": ".",
 		"paths": {
 			"@rxjs-ws-demo/api-interfaces": ["libs/api-interfaces/src/index.ts"],
-			"@rxjs-ws-demo/main-ui": ["libs/main-ui/src/index.ts"]
+			"@rxjs-ws-demo/main-ui": ["libs/main-ui/src/index.ts"],
+			"@rxjs-ws-demo/utils": ["libs/utils/src/index.ts"],
+			"@rxjs-ws-demo/web-sockets": ["libs/web-sockets/src/index.ts"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]
