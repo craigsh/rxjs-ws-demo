@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { HttpClient } from '@angular/common/http';
+import { Message } from '@rxjs-ws-demo/api-interfaces';
 
 @Component({
 	selector: 'mu-demo',
@@ -10,6 +12,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 		<mat-toolbar color="primary">Rxjs Web Sockets Demo </mat-toolbar>
 		<div class="wrapper">
 			<h1>Powered by Angular and NestJS</h1>
+
+			<div>Message: {{ hello$ | async | json }}</div>
 		</div>
 	`,
 	styles: [
@@ -26,4 +30,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DemoComponent {}
+export class DemoComponent {
+	private http = inject(HttpClient);
+
+	hello$ = this.http.get<Message>('/api/hello');
+}
