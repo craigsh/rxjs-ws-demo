@@ -4,8 +4,12 @@ import { Message } from '@rxjs-ws-demo/api-interfaces';
 
 @Component({
 	selector: 'rxjs-ws-demo-root',
-	templateUrl: './app.component.html',
-	styleUrls: ['./app.component.css'],
+	template: `
+		<mu-demo />
+		<!-- <rxjs-ws-demo-nx-welcome></rxjs-ws-demo-nx-welcome> -->
+		<div>Message: {{ hello$ | async | json }}</div>
+	`,
+	styles: [``],
 })
 export class AppComponent {
 	private http = inject(HttpClient);
