@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@angular/core';
 import { ComponentStore } from '@ngrx/component-store';
-import { NotificationJsonModel, WebSocketSubscriptionMsg } from '@rxjs-ws-demo/api-interfaces';
 import {
 	EMPTY,
 	Observable,
@@ -21,6 +20,7 @@ import { WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
 import { assertDefined } from '@rxjs-ws-demo/utils';
 import { DOCUMENT } from '@angular/common';
 import { AppStateStore } from './app.state';
+import { GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 
 const RETRY_SECONDS = 5;
 const MAX_RETRIES = 30;
@@ -28,10 +28,10 @@ const DEBUG_MODE = false;
 
 interface SocketState {
 	baseUri: string;
-	wsSubjectConfig?: WebSocketSubjectConfig<unknown>;
-	subscribeUnsubscribeMessages: WebSocketSubscriptionMsg[];
+	wsSubjectConfig?: WebSocketSubjectConfig<GenericWsMessage>;
+	subscribeUnsubscribeMessages: SubscriptionMessage[];
 	isConnected: boolean;
-	socket?: WebSocketSubject<unknown>;
+	socket?: WebSocketSubject<GenericWsMessage>;
 	subscriptionCount: number;
 	connections: number;
 	reconnectionTries: number;
@@ -75,8 +75,8 @@ export class SocketStore extends ComponentStore<SocketState> {
 		trigger$.pipe(
 			withLatestFrom(this.baseUri$, this.connections$),
 			tap(([, baseUri, connections]) => {
-				const url = baseUri.replace(/^http/, 'ws') + 'staff-care.ws';
-				const config: WebSocketSubjectConfig<unknown> = {
+				const url = baseUri; //.replace(/^http/, 'ws') + 'staff-care.ws';
+				const config: WebSocketSubjectConfig<GenericWsMessage> = {
 					url,
 					closeObserver: {
 						next: (event) => {
@@ -156,7 +156,7 @@ export class SocketStore extends ComponentStore<SocketState> {
 	/**
 	 * Watches the queue for changes, and when the socket exists, sends the messages in the queue.
 	 */
-	readonly watchQueue = this.effect((queue$: Observable<WebSocketSubscriptionMsg[]>) =>
+	readonly watchQueue = this.effect((queue$: Observable<SubscriptionMessage[]>) =>
 		queue$.pipe(
 			withLatestFrom(this.socket$),
 			tap(([queue, socket]) => {
@@ -171,7 +171,10 @@ export class SocketStore extends ComponentStore<SocketState> {
 					assertDefined(msg);
 
 					DEBUG_MODE && console.log('Sending queued message', msg);
-					socket.next(msg);
+					socket.next({
+						event: 'subscriptions',
+						data: msg,
+					});
 
 					this.patchState({ subscribeUnsubscribeMessages: queue });
 				}
@@ -182,11 +185,29 @@ export class SocketStore extends ComponentStore<SocketState> {
 	/**
 	 * Adds a message to the queue to send to Jade to subscribe or unsubscribe to/from a notification.
 	 */
-	private readonly queueSubscribeUnsubscribeMessage = this.effect((msg$: Observable<WebSocketSubscriptionMsg>) =>
+	private readonly queueSubscribeUnsubscribeMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
 		msg$.pipe(
 			withLatestFrom(this.subscribeUnsubscribeMessages$, this.subscriptionCount$),
 			tap(([msg, queue, subscriptionCount]) => {
-				if (msg.beginSub) {
+				if (msg.isSubscribe) {
+					subscriptionCount++;
+				} else {
+					subscriptionCount--;
+				}
+
+				this.patchState({ subscribeUnsubscribeMessages: [...queue, msg], subscriptionCount });
+			}),
+		),
+	);
+
+	/**
+	 * Adds a message to the queue to send to Jade to subscribe or unsubscribe to/from a notification.
+	 */
+	private readonly queueSubscribeMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
+		msg$.pipe(
+			withLatestFrom(this.subscribeUnsubscribeMessages$, this.subscriptionCount$),
+			tap(([msg, queue, subscriptionCount]) => {
+				if (msg.isSubscribe) {
 					subscriptionCount++;
 				} else {
 					subscriptionCount--;
@@ -213,66 +234,22 @@ export class SocketStore extends ComponentStore<SocketState> {
 		this.watchQueue(this.toSend$);
 	}
 
-	/**
-	 * Begins a Jade class notification, returning an Observable of the type.
-	 * @param jadeClassName The Jade class name
-	 * @param eventType The Jade event type number to subscribe to
-	 * @param ignoreSelf Whether to ignore messages from the current session
-	 * @returns
-	 */
-	beginClassNotification<T extends NotificationJsonModel = NotificationJsonModel>(
-		jadeClassName: string,
-		eventType: number,
-		ignoreSelf = false,
-	): Observable<T> {
-		return this.setUpNotification<T>({ jadeClassName, eventType }).pipe(
+	subscribeToEventType<T extends SubscriptionEvent>(eventType: string): Observable<T> {
+		return this.setUpSubscription<T>(eventType).pipe(
 			filter((msg) => {
-				if (ignoreSelf && msg.note_causer_sessionId === this.appState.sessionId) {
-					return false;
-				}
-
-				return true;
+				return msg.eventType === eventType;
 			}),
 		);
 	}
 
-	/**
-	 * Begins a Jade session notification, returning an Observable of the type.
-	 * @param eventType The Jade event type number to subscribe to
-	 * @returns
-	 */
-	beginSessionNotification<T extends NotificationJsonModel = NotificationJsonModel>(
-		eventType: number,
-	): Observable<T> {
-		return this.setUpNotification({ eventType, session: true });
-	}
-
-	/**
-	 * Sets up the notification in Jade, and returns an Observable of messages of the type.
-	 * @param opts
-	 * @returns
-	 */
-	private setUpNotification<T extends NotificationJsonModel = NotificationJsonModel>(opts: {
-		jadeClassName?: string;
-		eventType: number;
-		session?: boolean;
-	}) {
-		opts.jadeClassName ||= '';
-		opts.session ||= false;
-
-		const sessionOid = opts.session ? this.appState.sessionId : '';
-
+	private setUpSubscription<T extends SubscriptionEvent>(eventType: string): Observable<T> {
 		const msg = {
-			// $type: Types.WebSocketSubscriptionMsg,
-			className: opts.jadeClassName,
-			eventType: opts.eventType,
-			session: opts.session,
-			oid: sessionOid,
-			beginSub: true,
-		} as WebSocketSubscriptionMsg;
+			eventType,
+			isSubscribe: true,
+		} as SubscriptionMessage;
 
 		// Send a message to Jade to subscribe to the notification.
-		this.queueSubscribeUnsubscribeMessage(msg);
+		this.queueSubscribeMessage(msg);
 
 		return this.messages$.pipe(
 			map((msg) => msg as T),
@@ -280,19 +257,99 @@ export class SocketStore extends ComponentStore<SocketState> {
 				DEBUG_MODE && console.log('received notification', msg);
 			}),
 			filter((msg) => {
-				if (opts.session) {
-					return msg.note_eventType === opts.eventType && msg.note_typeName === 'ApiSession';
-				}
-				return msg.note_typeName === opts.jadeClassName && msg.note_eventType === opts.eventType;
+				return msg.eventType === eventType;
 			}),
 			finalize(() => {
-				// Caller has unsubscribed from the stream, so send the message to Jade to unsubscribe from the notification.
-				const unsubscribeMessage = {
+				// Caller has unsubscribed from the stream, so send the message to the server  to unsubscribe from the event.
+				const unsubscribeMessage: SubscriptionMessage = {
 					...msg,
-					beginSub: false,
+					isSubscribe: false,
 				};
 				this.queueSubscribeUnsubscribeMessage(unsubscribeMessage);
 			}),
 		);
 	}
+
+	// /**
+	//  * Begins a Jade class notification, returning an Observable of the type.
+	//  * @param jadeClassName The Jade class name
+	//  * @param eventType The Jade event type number to subscribe to
+	//  * @param ignoreSelf Whether to ignore messages from the current session
+	//  * @returns
+	//  */
+	// beginClassNotification<T extends NotificationJsonModel = NotificationJsonModel>(
+	// 	jadeClassName: string,
+	// 	eventType: number,
+	// 	ignoreSelf = false,
+	// ): Observable<T> {
+	// 	return this.setUpNotification<T>({ jadeClassName, eventType }).pipe(
+	// 		filter((msg) => {
+	// 			if (ignoreSelf && msg.note_causer_sessionId === this.appState.sessionId) {
+	// 				return false;
+	// 			}
+
+	// 			return true;
+	// 		}),
+	// 	);
+	// }
+
+	// /**
+	//  * Begins a Jade session notification, returning an Observable of the type.
+	//  * @param eventType The Jade event type number to subscribe to
+	//  * @returns
+	//  */
+	// beginSessionNotification<T extends NotificationJsonModel = NotificationJsonModel>(
+	// 	eventType: number,
+	// ): Observable<T> {
+	// 	return this.setUpNotification({ eventType, session: true });
+	// }
+
+	// /**
+	//  * Sets up the notification in Jade, and returns an Observable of messages of the type.
+	//  * @param opts
+	//  * @returns
+	//  */
+	// private setUpNotification<T extends NotificationJsonModel = NotificationJsonModel>(opts: {
+	// 	jadeClassName?: string;
+	// 	eventType: number;
+	// 	session?: boolean;
+	// }) {
+	// 	opts.jadeClassName ||= '';
+	// 	opts.session ||= false;
+
+	// 	const sessionOid = opts.session ? this.appState.sessionId : '';
+
+	// 	const msg = {
+	// 		// $type: Types.WebSocketSubscriptionMsg,
+	// 		className: opts.jadeClassName,
+	// 		eventType: opts.eventType,
+	// 		session: opts.session,
+	// 		oid: sessionOid,
+	// 		beginSub: true,
+	// 	} as WebSocketSubscriptionMsg;
+
+	// 	// Send a message to Jade to subscribe to the notification.
+	// 	this.queueSubscribeUnsubscribeMessage(msg);
+
+	// 	return this.messages$.pipe(
+	// 		map((msg) => msg as T),
+	// 		tap((msg) => {
+	// 			DEBUG_MODE && console.log('received notification', msg);
+	// 		}),
+	// 		filter((msg) => {
+	// 			if (opts.session) {
+	// 				return msg.note_eventType === opts.eventType && msg.note_typeName === 'ApiSession';
+	// 			}
+	// 			return msg.note_typeName === opts.jadeClassName && msg.note_eventType === opts.eventType;
+	// 		}),
+	// 		finalize(() => {
+	// 			// Caller has unsubscribed from the stream, so send the message to Jade to unsubscribe from the notification.
+	// 			const unsubscribeMessage = {
+	// 				...msg,
+	// 				beginSub: false,
+	// 			};
+	// 			this.queueSubscribeUnsubscribeMessage(unsubscribeMessage);
+	// 		}),
+	// 	);
+	// }
 }

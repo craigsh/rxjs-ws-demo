@@ -9,7 +9,7 @@ import { Message } from '@rxjs-ws-demo/api-interfaces';
 	standalone: true,
 	imports: [CommonModule, MatToolbarModule],
 	template: `
-		<mat-toolbar color="primary">Rxjs Web Sockets Demo </mat-toolbar>
+		<mat-toolbar color="primary">RxJs Web Sockets Demo </mat-toolbar>
 		<div class="wrapper">
 			<h1>Powered by Angular and NestJS</h1>
 
