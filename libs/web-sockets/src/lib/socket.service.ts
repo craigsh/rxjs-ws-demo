@@ -24,7 +24,7 @@ import { GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-
 
 const RETRY_SECONDS = 5;
 const MAX_RETRIES = 30;
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 interface SocketState {
 	baseUri: string;
@@ -41,7 +41,7 @@ interface SocketState {
 @Injectable({
 	providedIn: 'root',
 })
-export class SocketStore extends ComponentStore<SocketState> {
+export class SocketService extends ComponentStore<SocketState> {
 	readonly isConnected$ = this.select(({ isConnected }) => isConnected);
 	readonly subscriptionCount$ = this.select(({ subscriptionCount }) => subscriptionCount);
 	readonly connections$ = this.select(({ connections }) => connections);
@@ -75,7 +75,9 @@ export class SocketStore extends ComponentStore<SocketState> {
 		trigger$.pipe(
 			withLatestFrom(this.baseUri$, this.connections$),
 			tap(([, baseUri, connections]) => {
-				const url = baseUri; //.replace(/^http/, 'ws') + 'staff-care.ws';
+				const url = baseUri.replace(/^http/, 'ws') + 'ws';
+
+				console.log('url', url);
 				const config: WebSocketSubjectConfig<GenericWsMessage> = {
 					url,
 					closeObserver: {
@@ -137,10 +139,10 @@ export class SocketStore extends ComponentStore<SocketState> {
 					withLatestFrom(this.isConnected$, this.reconnectionTries$),
 					takeWhile(([, isConnected, reconnectionTries], index) => {
 						if (!isConnected) {
-							DEBUG_MODE && console.log('Attempting re-connect to websocket - try #' + index + 1);
-
 							reconnectionTries++;
 							this.patchState({ reconnectionTries });
+
+							DEBUG_MODE && console.log('Attempting re-connect to websocket - try #' + reconnectionTries);
 						}
 
 						return !isConnected && index < MAX_RETRIES;
