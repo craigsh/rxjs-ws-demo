@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatButtonModule } from '@angular/material/button';
 import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { ComponentStore } from '@ngrx/component-store';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService } from '@rxjs-ws-demo/web-sockets';
-import { mergeMap, switchMap, tap } from 'rxjs';
-import { ComponentStore } from '@ngrx/component-store';
+import { Subject, switchMap, takeUntil, tap } from 'rxjs';
 
 export type NoState = Record<string, never>;
 
@@ -22,7 +22,8 @@ export type NoState = Record<string, never>;
 			<div>Message: {{ hello$ | async | json }}</div>
 
 			<button mat-raised-button (click)="subscribe()">Subscribe</button>
-			<button mat-raised-button>Unsubscribe</button>
+			<button mat-raised-button (click)="subscribeConnects()">Subscribe connects</button>
+			<button mat-raised-button (click)="endSub.next()">Unsubscribe</button>
 			<button mat-raised-button (click)="postMessage()">Post message</button>
 		</div>
 	`,
@@ -44,14 +45,31 @@ export class DemoComponent extends ComponentStore<NoState> {
 	private http = inject(HttpClient);
 	protected socketService = inject(SocketService);
 
+	readonly endSub = new Subject<void>();
+	private readonly endSub$ = this.endSub.asObservable();
+
 	hello$ = this.http.get<Message>('/api/hello');
 
 	readonly subscribe = this.effect((trigger$) =>
 		trigger$.pipe(
-			mergeMap(() => {
+			switchMap(() => {
 				return this.socketService.subscribeToEventType('message').pipe(
+					takeUntil(this.endSub$),
 					tap((data) => {
 						console.log('data - via WS event', data);
+					}),
+				);
+			}),
+		),
+	);
+
+	readonly subscribeConnects = this.effect((trigger$) =>
+		trigger$.pipe(
+			switchMap(() => {
+				return this.socketService.subscribeToEventType('connect').pipe(
+					takeUntil(this.endSub$),
+					tap((data) => {
+						console.log('connect event', data);
 					}),
 				);
 			}),

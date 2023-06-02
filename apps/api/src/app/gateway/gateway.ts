@@ -5,7 +5,7 @@ import {
 	WebSocketGateway,
 	WebSocketServer,
 } from '@nestjs/websockets';
-import { SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { EventType, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 import { Socket } from 'dgram';
 import { Server } from 'ws';
 import { WsInterfaceService } from '../shared/ws-Interface';
@@ -19,46 +19,44 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	@WebSocketServer()
 	server: Server;
 
-	wsClients: Socket[] = [];
+	private wsClients: Socket[] = [];
+
+	private subscriptions: Map<EventType, WeakSet<Socket>> = new Map();
 
 	handleDisconnect(client: Socket) {
-		//console.log('handleDisconnect', client);
-
 		this.wsClients = this.wsClients.filter((c) => c !== client);
 
 		console.log('Client disconnected ' + this.wsClients.length);
+		this.broadcastConnectDisconnect(false);
 	}
 
 	handleConnection(client: Socket, ...args: any[]) {
-		//console.log('handleConnection', args, client['sec-websocket-key']);
-
 		this.wsClients.push(client);
-
 		console.log('Client connected ' + this.wsClients.length);
+
+		this.broadcastConnectDisconnect(true);
 	}
 
-	// @SubscribeMessage('newMessage')
-	// handleMessage(@ConnectedSocket() client: Socket, @MessageBody() payload: any): void {
-	// 	console.log('handleMessage', client, payload);
-	// }
-
-	// sendToAll(msg: string) {
-	// 	this.server.emit('message', msg);
-	// }
-
 	@SubscribeMessage('subscriptions')
-	onEvent(client: Socket, data: SubscriptionMessage) {
+	onEvent(client: Socket, subscriptionRequest: SubscriptionMessage) {
 		//: Observable<WsResponse<number>> {
-		console.log('onEvent', data);
+		console.log('onEvent', subscriptionRequest);
 
-		this.wsClients.forEach((c) => {
-			c.send(JSON.stringify(data));
-		});
+		if (subscriptionRequest.isSubscribe) {
+			let map = this.subscriptions.get(subscriptionRequest.eventType);
+			if (!map) {
+				map = new WeakSet<Socket>();
+				this.subscriptions.set(subscriptionRequest.eventType, map);
+			}
 
-		// return from([1, 2, 3]).pipe(
-		// 	delay(1000),
-		// 	map((item) => ({ event: 'events', data: item * 2 })),
-		// );
+			map.add(client);
+		} else {
+			// Unsubscribe
+			const map = this.subscriptions.get(subscriptionRequest.eventType);
+			if (map) {
+				map.delete(client);
+			}
+		}
 	}
 
 	private listenForMessages() {
@@ -70,9 +68,40 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 				body: msg,
 			};
 
+			// Find the subscribers to the message event
+			const subscribers = this.subscriptions.get('message');
+
+			let count = 0;
 			this.wsClients.forEach((c) => {
-				c.send(JSON.stringify(event));
+				if (subscribers && subscribers.has(c)) {
+					count++;
+					c.send(JSON.stringify(event));
+				}
 			});
+
+			console.log('Message notification sent to ' + count + ' subscribers');
 		});
+	}
+
+	private broadcastConnectDisconnect(isConnect: boolean) {
+		const eventType = isConnect ? 'connect' : 'disconnect';
+
+		const event: SubscriptionEvent = {
+			eventType,
+			body: (isConnect ? 'Client connected' : 'Client disconnected') + ' at ' + new Date(),
+		};
+
+		// Find the subscribers to the connect/disconnect event
+		const subscribers = this.subscriptions.get(eventType);
+
+		let count = 0;
+		this.wsClients.forEach((c) => {
+			if (subscribers && subscribers.has(c)) {
+				count++;
+				c.send(JSON.stringify(event));
+			}
+		});
+
+		console.log(eventType + ' notification sent to ' + count + ' subscribers');
 	}
 }

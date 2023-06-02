@@ -20,7 +20,7 @@ import { WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
 import { assertDefined } from '@rxjs-ws-demo/utils';
 import { DOCUMENT } from '@angular/common';
 import { AppStateStore } from './app.state';
-import { GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { EventType, GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 
 const RETRY_SECONDS = 5;
 const MAX_RETRIES = 30;
@@ -238,7 +238,7 @@ export class SocketService extends ComponentStore<SocketState> {
 		this.watchQueue(this.toSend$);
 	}
 
-	subscribeToEventType<T extends SubscriptionEvent>(eventType: string): Observable<T> {
+	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
 		return this.setUpSubscription<T>(eventType).pipe(
 			filter((msg) => {
 				return msg.eventType === eventType;
@@ -246,7 +246,7 @@ export class SocketService extends ComponentStore<SocketState> {
 		);
 	}
 
-	private setUpSubscription<T extends SubscriptionEvent>(eventType: string): Observable<T> {
+	private setUpSubscription<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
 		const msg = {
 			eventType,
 			isSubscribe: true,
