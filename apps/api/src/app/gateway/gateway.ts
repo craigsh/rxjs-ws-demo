@@ -5,12 +5,17 @@ import {
 	WebSocketGateway,
 	WebSocketServer,
 } from '@nestjs/websockets';
-import { SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 import { Socket } from 'dgram';
 import { Server } from 'ws';
+import { WsInterfaceService } from '../shared/ws-Interface';
 
 @WebSocketGateway()
 export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+	constructor(private wsInterface: WsInterfaceService) {
+		this.listenForMessages();
+	}
+
 	@WebSocketServer()
 	server: Server;
 
@@ -54,5 +59,20 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		// 	delay(1000),
 		// 	map((item) => ({ event: 'events', data: item * 2 })),
 		// );
+	}
+
+	private listenForMessages() {
+		this.wsInterface.messages$.subscribe((msg) => {
+			console.log('listenForMessages', msg);
+
+			const event: SubscriptionEvent = {
+				eventType: 'message',
+				body: msg,
+			};
+
+			this.wsClients.forEach((c) => {
+				c.send(JSON.stringify(event));
+			});
+		});
 	}
 }

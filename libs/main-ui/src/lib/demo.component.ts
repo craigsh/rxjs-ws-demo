@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { HttpClient } from '@angular/common/http';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService } from '@rxjs-ws-demo/web-sockets';
-import { mergeMap, tap } from 'rxjs';
+import { mergeMap, switchMap, tap } from 'rxjs';
 import { ComponentStore } from '@ngrx/component-store';
 
 export type NoState = Record<string, never>;
@@ -23,6 +23,7 @@ export type NoState = Record<string, never>;
 
 			<button mat-raised-button (click)="subscribe()">Subscribe</button>
 			<button mat-raised-button>Unsubscribe</button>
+			<button mat-raised-button (click)="postMessage()">Post message</button>
 		</div>
 	`,
 	styles: [
@@ -48,9 +49,21 @@ export class DemoComponent extends ComponentStore<NoState> {
 	readonly subscribe = this.effect((trigger$) =>
 		trigger$.pipe(
 			mergeMap(() => {
-				return this.socketService
-					.subscribeToEventType('message')
-					.pipe(tap((data) => console.log('data', data)));
+				return this.socketService.subscribeToEventType('message').pipe(
+					tap((data) => {
+						console.log('data - via WS event', data);
+					}),
+				);
+			}),
+		),
+	);
+
+	readonly postMessage = this.effect((trigger$) =>
+		trigger$.pipe(
+			switchMap(() => {
+				return this.http.post('/api/message', {
+					message: 'Hello from Angular',
+				});
 			}),
 		),
 	);
