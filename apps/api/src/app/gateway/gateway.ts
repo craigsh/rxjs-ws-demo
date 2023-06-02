@@ -1,21 +1,18 @@
 import {
-	ConnectedSocket,
-	MessageBody,
 	OnGatewayConnection,
 	OnGatewayDisconnect,
 	SubscribeMessage,
 	WebSocketGateway,
 	WebSocketServer,
-	WsResponse,
 } from '@nestjs/websockets';
+import { SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 import { Socket } from 'dgram';
-import { Observable, delay, from, map } from 'rxjs';
-import { GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { Server } from 'ws';
 
 @WebSocketGateway()
 export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	@WebSocketServer()
-	server;
+	server: Server;
 
 	wsClients: Socket[] = [];
 
