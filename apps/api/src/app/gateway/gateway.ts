@@ -30,7 +30,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		this.broadcastConnectDisconnect(false);
 	}
 
-	handleConnection(client: Socket, ...args: any[]) {
+	handleConnection(client: Socket) {
 		this.wsClients.push(client);
 		console.log('Client connected ' + this.wsClients.length);
 
@@ -39,8 +39,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage('subscriptions')
 	onEvent(client: Socket, subscriptionRequest: SubscriptionMessage) {
-		//: Observable<WsResponse<number>> {
-		console.log('onEvent', subscriptionRequest);
+		console.log('on subscriptions', subscriptionRequest);
 
 		if (subscriptionRequest.isSubscribe) {
 			let map = this.subscriptions.get(subscriptionRequest.eventType);
