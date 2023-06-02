@@ -77,7 +77,9 @@ export class SocketService extends ComponentStore<SocketState> {
 			tap(([, baseUri, connections]) => {
 				const url = baseUri.replace(/^http/, 'ws') + 'ws';
 
-				console.log('url', url);
+				if (DEBUG_MODE) {
+					console.log('Web socket url', url);
+				}
 				const config: WebSocketSubjectConfig<GenericWsMessage> = {
 					url,
 					closeObserver: {
