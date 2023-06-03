@@ -36,8 +36,8 @@ interface DemoState {
 	template: `
 		<mat-toolbar color="primary">
 			<div class="content">
-				<div class="title">RxJs Web Sockets Demo</div>
-				<h1>Powered by Angular and NestJS</h1>
+				<div class="title">RxJS Web Sockets Demo</div>
+				<h1>Powered by Angular, RxJS, and NestJS</h1>
 			</div>
 		</mat-toolbar>
 
