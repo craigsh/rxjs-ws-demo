@@ -221,7 +221,7 @@ export class SocketService extends ComponentStore<SocketState> {
 			isSubscribe: true,
 		} as SubscriptionMessage;
 
-		// Send a message to Jade to subscribe to the notification.
+		// Send a message to the server to subscribe to the notification.
 		this.queueSubscribeUnsubscribeMessage(msg);
 
 		return this.messages$.pipe(
@@ -233,7 +233,7 @@ export class SocketService extends ComponentStore<SocketState> {
 				return msg.eventType === eventType;
 			}),
 			finalize(() => {
-				// Caller has unsubscribed from the stream, so send the message to the server  to unsubscribe from the event.
+				// Caller has unsubscribed from the stream, so send the message to the server to unsubscribe from the event.
 				const unsubscribeMessage: SubscriptionMessage = {
 					...msg,
 					isSubscribe: false,

@@ -39,7 +39,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage('subscriptions')
 	onEvent(client: Socket, subscriptionRequest: SubscriptionMessage) {
-		console.log('on subscriptions', subscriptionRequest);
+		console.log('Received subscription message', subscriptionRequest);
 
 		if (subscriptionRequest.isSubscribe) {
 			let map = this.subscriptions.get(subscriptionRequest.eventType);
