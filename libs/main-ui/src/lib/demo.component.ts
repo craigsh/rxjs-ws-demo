@@ -7,7 +7,6 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ComponentStore } from '@ngrx/component-store';
-import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService, SocketStatsStore } from '@rxjs-ws-demo/web-sockets';
 import { Observable, skip, tap } from 'rxjs';
 import { ClientConnectionWatcherComponent } from './client-connection-watcher.component';
@@ -153,8 +152,6 @@ export class DemoComponent extends ComponentStore<DemoState> {
 		showingConnectionWatcher: this.showingConnectionWatcher$,
 		showingMessenger: this.showingMessenger$,
 	});
-
-	hello$ = this.http.get<Message>('/api/hello');
 
 	constructor() {
 		super({

@@ -1,19 +1,21 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { StatusValueComponent } from './status-value.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { ComponentStore } from '@ngrx/component-store';
+import { Message, SubscriptionEvent } from '@rxjs-ws-demo/api-interfaces';
+import { MessageService } from '@rxjs-ws-demo/rest';
 import { SocketService } from '@rxjs-ws-demo/web-sockets';
 import { Observable, switchMap, tap, withLatestFrom } from 'rxjs';
-import { MatInputModule } from '@angular/material/input';
-import { MessageService } from '@rxjs-ws-demo/rest';
+import { StatusValueComponent } from './status-value.component';
+import { MessageDisplayComponent } from './message-display.component';
 
 type MessengerState = {
-	messages: string[];
+	messages: Message[];
 };
 
 const MAX_MESSAGES = 100;
@@ -28,8 +30,9 @@ const MAX_MESSAGES = 100;
 		MatCardModule,
 		MatFormFieldModule,
 		MatIconModule,
-		StatusValueComponent,
 		MatInputModule,
+		MessageDisplayComponent,
+		StatusValueComponent,
 	],
 	template: `
 		<ng-container *ngIf="vm$ | async as vm">
@@ -65,7 +68,7 @@ const MAX_MESSAGES = 100;
 
 						<div *ngIf="vm.messages.length; else noMessages">
 							<div class="message" *ngFor="let msg of vm.messages">
-								{{ msg }}
+								<mu-message-display [message]="msg" [thisClientId]="vm.myClientId" />
 							</div>
 						</div>
 
@@ -130,6 +133,7 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 	readonly messages$ = this.select(({ messages }) => messages);
 
 	readonly vm$ = this.select({
+		myClientId: this.messageService.clientId$,
 		messages: this.messages$,
 		isConnected: this.socketService.isConnected$,
 	});
@@ -137,11 +141,10 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 	readonly listenForMessages = this.effect((trigger$) =>
 		trigger$.pipe(
 			switchMap(() =>
-				this.socketService.subscribeToEventType('message').pipe(
+				this.socketService.subscribeToEventType<SubscriptionEvent<Message>>('message').pipe(
 					withLatestFrom(this.messages$),
 					tap(([message, messages]) => {
-						const txt = message.body as string;
-						this.patchState({ messages: [...messages, txt].slice(-MAX_MESSAGES) });
+						this.patchState({ messages: [...messages, message.body].slice(-MAX_MESSAGES) });
 					}),
 				),
 			),

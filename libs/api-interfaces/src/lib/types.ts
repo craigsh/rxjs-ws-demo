@@ -1,5 +1,7 @@
 export interface Message {
+	clientId: string;
 	message: string;
+	sentAt: Date;
 }
 
 export type EventType = 'message' | 'connect' | 'disconnect';
@@ -10,12 +12,11 @@ export interface WsMessageContent {}
 export interface SubscriptionMessage extends WsMessageContent {
 	eventType: EventType;
 	isSubscribe: boolean;
-	clientId?: string;
 }
 
-export interface SubscriptionEvent extends WsMessageContent {
+export interface SubscriptionEvent<TBody = unknown> extends WsMessageContent {
 	eventType: EventType;
-	body: unknown;
+	body: TBody;
 }
 
 export interface WsMessage {
