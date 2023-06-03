@@ -14,6 +14,7 @@
 				"index": "apps/fe-demo/src/index.html",
 				"main": "apps/fe-demo/src/main.ts",
 				"polyfills": ["zone.js"],
+				"inlineStyleLanguage": "scss",
 				"tsConfig": "apps/fe-demo/tsconfig.app.json",
 				"assets": ["apps/fe-demo/src/favicon.ico", "apps/fe-demo/src/assets"],
 				"styles": ["@angular/material/prebuilt-themes/deeppurple-amber.css", "apps/fe-demo/src/styles.css"],

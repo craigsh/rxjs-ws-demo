@@ -1,17 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ComponentStore } from '@ngrx/component-store';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService, SocketStatsStore } from '@rxjs-ws-demo/web-sockets';
-import { Observable, Subject, skip, switchMap, takeUntil, tap } from 'rxjs';
-import { ConnectionStatusComponent } from './connection-status.component';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Observable, Subject, skip, tap } from 'rxjs';
 import { ClientConnectionWatcherComponent } from './client-connection-watcher.component';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { FormsModule } from '@angular/forms';
+import { ConnectionStatusComponent } from './connection-status.component';
 import { MessengerComponent } from './messenger.component';
 
 interface DemoState {
@@ -172,39 +172,39 @@ export class DemoComponent extends ComponentStore<DemoState> {
 		),
 	);
 
-	readonly subscribe = this.effect((trigger$) =>
-		trigger$.pipe(
-			switchMap(() => {
-				return this.socketService.subscribeToEventType('message').pipe(
-					takeUntil(this.endSub$),
-					tap((data) => {
-						console.log('data - via WS event', data);
-					}),
-				);
-			}),
-		),
-	);
+	// readonly subscribe = this.effect((trigger$) =>
+	// 	trigger$.pipe(
+	// 		switchMap(() => {
+	// 			return this.socketService.subscribeToEventType('message').pipe(
+	// 				takeUntil(this.endSub$),
+	// 				tap((data) => {
+	// 					console.log('data - via WS event', data);
+	// 				}),
+	// 			);
+	// 		}),
+	// 	),
+	// );
 
-	readonly subscribeConnects = this.effect((trigger$) =>
-		trigger$.pipe(
-			switchMap(() => {
-				return this.socketService.subscribeToEventType('connect').pipe(
-					takeUntil(this.endSub$),
-					tap((data) => {
-						console.log('connect event', data);
-					}),
-				);
-			}),
-		),
-	);
+	// readonly subscribeConnects = this.effect((trigger$) =>
+	// 	trigger$.pipe(
+	// 		switchMap(() => {
+	// 			return this.socketService.subscribeToEventType('connect').pipe(
+	// 				takeUntil(this.endSub$),
+	// 				tap((data) => {
+	// 					console.log('connect event', data);
+	// 				}),
+	// 			);
+	// 		}),
+	// 	),
+	// );
 
-	readonly postMessage = this.effect((trigger$) =>
-		trigger$.pipe(
-			switchMap(() => {
-				return this.http.post('/api/message', {
-					message: 'Hello from Angular',
-				});
-			}),
-		),
-	);
+	// readonly postMessage = this.effect((trigger$) =>
+	// 	trigger$.pipe(
+	// 		switchMap(() => {
+	// 			return this.http.post('/api/message', {
+	// 				message: 'Hello from Angular',
+	// 			});
+	// 		}),
+	// 	),
+	// );
 }

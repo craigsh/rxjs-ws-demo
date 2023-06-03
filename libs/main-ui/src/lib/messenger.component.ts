@@ -10,6 +10,7 @@ import { ComponentStore } from '@ngrx/component-store';
 import { SocketService } from '@rxjs-ws-demo/web-sockets';
 import { Observable, switchMap, tap, withLatestFrom } from 'rxjs';
 import { MatInputModule } from '@angular/material/input';
+import { MessageService } from '@rxjs-ws-demo/rest';
 
 type MessengerState = {
 	messages: string[];
@@ -44,7 +45,7 @@ const MAX_MESSAGES = 100;
 						<h2>Sender</h2>
 
 						<form class="message-form">
-							<mat-form-field class="example-full-width">
+							<mat-form-field style="flex: 1;">
 								<mat-label>Message</mat-label>
 								<input matInput placeholder="Send a message" #message />
 							</mat-form-field>
@@ -88,13 +89,33 @@ const MAX_MESSAGES = 100;
 					> div {
 						flex: 1;
 					}
-				}
-			}
 
-			button#close-button {
-				position: absolute;
-				right: 0;
-				top: 0;
+					form.message-form {
+						width: 100%;
+						display: flex;
+						align-items: baseline;
+						gap: 8px;
+					}
+
+					h2 {
+						margin: 0;
+						margin-bottom: 8px;
+
+						font-size: 1rem;
+						font-weight: 500;
+					}
+
+					.no-messages {
+						font-size: 0.8rem;
+						opacity: 0.8;
+					}
+				}
+
+				button#close-button {
+					position: absolute;
+					right: 0;
+					top: 0;
+				}
 			}
 		`,
 	],
@@ -102,6 +123,7 @@ const MAX_MESSAGES = 100;
 })
 export class MessengerComponent extends ComponentStore<MessengerState> {
 	protected socketService = inject(SocketService);
+	private messageService = inject(MessageService);
 
 	@Output() closed = new EventEmitter();
 
@@ -126,7 +148,7 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 	readonly sendMessage = this.effect((message$: Observable<string>) =>
 		message$.pipe(
 			tap((message) => {
-				console.log('Sending message', message);
+				this.messageService.sendMessage(message);
 			}),
 		),
 	);
@@ -135,5 +157,7 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 		super({
 			messages: [],
 		});
+
+		this.listenForMessages();
 	}
 }
