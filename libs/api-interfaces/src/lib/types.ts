@@ -10,7 +10,7 @@ export type EventType = 'message' | 'connect' | 'disconnect';
 export interface WsMessageContent {}
 
 export interface SubscriptionMessage extends WsMessageContent {
-	eventType: EventType;
+	eventType: EventType | EventType[];
 	isSubscribe: boolean;
 }
 

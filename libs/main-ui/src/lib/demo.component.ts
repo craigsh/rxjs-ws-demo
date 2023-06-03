@@ -155,8 +155,8 @@ export class DemoComponent extends ComponentStore<DemoState> {
 
 	constructor() {
 		super({
-			showingConnectionStatus: false,
-			showingConnectionWatcher: false,
+			showingConnectionStatus: true,
+			showingConnectionWatcher: true,
 			showingMessenger: true,
 		});
 

@@ -23,13 +23,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	private subscriptions: Map<EventType, WeakSet<Socket>> = new Map();
 
-	handleDisconnect(client: Socket) {
-		this.wsClients = this.wsClients.filter((c) => c !== client);
-
-		console.log('Client disconnected ' + this.wsClients.length);
-		this.broadcastConnectDisconnect(false);
-	}
-
 	handleConnection(client: Socket) {
 		this.wsClients.push(client);
 		console.log('Client connected ' + this.wsClients.length);
@@ -37,24 +30,40 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		this.broadcastConnectDisconnect(true);
 	}
 
+	handleDisconnect(client: Socket) {
+		this.wsClients = this.wsClients.filter((c) => c !== client);
+
+		console.log('Client disconnected ' + this.wsClients.length);
+		this.broadcastConnectDisconnect(false);
+	}
+
 	@SubscribeMessage('subscriptions')
 	onEvent(client: Socket, subscriptionRequest: SubscriptionMessage) {
 		console.log('Received subscription message', subscriptionRequest);
 
-		if (subscriptionRequest.isSubscribe) {
-			let map = this.subscriptions.get(subscriptionRequest.eventType);
-			if (!map) {
-				map = new WeakSet<Socket>();
-				this.subscriptions.set(subscriptionRequest.eventType, map);
-			}
+		const eventTypes =
+			typeof subscriptionRequest.eventType === 'string'
+				? [subscriptionRequest.eventType]
+				: subscriptionRequest.eventType;
 
-			map.add(client);
+		if (subscriptionRequest.isSubscribe) {
+			eventTypes.forEach((eventType) => {
+				let map = this.subscriptions.get(eventType);
+				if (!map) {
+					map = new WeakSet<Socket>();
+					this.subscriptions.set(eventType, map);
+				}
+
+				map.add(client);
+			});
 		} else {
 			// Unsubscribe
-			const map = this.subscriptions.get(subscriptionRequest.eventType);
-			if (map) {
-				map.delete(client);
-			}
+			eventTypes.forEach((eventType) => {
+				const map = this.subscriptions.get(eventType);
+				if (map) {
+					map.delete(client);
+				}
+			});
 		}
 	}
 

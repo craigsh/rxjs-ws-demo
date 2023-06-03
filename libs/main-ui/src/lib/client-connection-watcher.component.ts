@@ -78,44 +78,25 @@ export class ClientConnectionWatcherComponent extends ComponentStore<ClientConne
 
 		// Immediately Subscribe to connect and disconnect events from the server
 		this.watchClientConnections();
-		this.watchClientDisconnections();
 
 		// Re-subscribe to connect and disconnect events from the server when the socket reconnects
 		this.watchClientConnections(this.socket.connected$);
-		this.watchClientDisconnections(this.socket.connected$);
 	}
 
 	private readonly watchClientConnections = this.effect((trigger$) =>
 		trigger$.pipe(
 			switchMap(() =>
-				this.socket.subscribeToEventType<SubscriptionEvent>('connect').pipe(
+				this.socket.subscribeToEventType<SubscriptionEvent>(['connect', 'disconnect']).pipe(
 					withLatestFrom(this.connectionMessages$),
-					tap(([, connectionMessages]) => {
-						this.patchState({
-							connectionMessages: [
-								...connectionMessages,
-								`Client connected - at ${new Date().toISOString()}`,
-							],
-						});
-						this.trim();
-					}),
-				),
-			),
-		),
-	);
+					tap(([event, connectionMessages]) => {
+						const connectionMessage = `Client ${
+							event.eventType === 'connect' ? 'connected' : 'disconnected'
+						} - at ${new Date().toISOString()}`;
 
-	private readonly watchClientDisconnections = this.effect((trigger$) =>
-		trigger$.pipe(
-			switchMap(() =>
-				this.socket.subscribeToEventType<SubscriptionEvent>('disconnect').pipe(
-					withLatestFrom(this.connectionMessages$),
-					tap(([, connectionMessages]) => {
 						this.patchState({
-							connectionMessages: [
-								...connectionMessages,
-								`Client disconnected - at ${new Date().toISOString()}`,
-							],
+							connectionMessages: [...connectionMessages, connectionMessage],
 						});
+
 						this.trim();
 					}),
 				),

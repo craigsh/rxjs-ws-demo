@@ -253,12 +253,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * @param eventType
 	 * @returns
 	 */
-	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
-		return this.setUpSubscription<T>(eventType).pipe(
-			filter((msg) => {
-				return msg.eventType === eventType;
-			}),
-		);
+	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
+		return this.setUpSubscription<T>(eventType);
 	}
 
 	/**
@@ -266,7 +262,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * @param eventType
 	 * @returns
 	 */
-	private setUpSubscription<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
+	private setUpSubscription<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
 		const msg = {
 			eventType,
 			isSubscribe: true,
@@ -281,7 +277,11 @@ export class SocketService extends ComponentStore<SocketState> {
 				DEBUG_MODE && console.log('received notification', msg);
 			}),
 			filter((msg) => {
-				return msg.eventType === eventType;
+				if (typeof eventType === 'string') {
+					return msg.eventType === eventType;
+				} else {
+					return eventType.includes(msg.eventType);
+				}
 			}),
 			finalize(() => {
 				// Caller has unsubscribed from the stream, so send the message to the server to unsubscribe from the event.
