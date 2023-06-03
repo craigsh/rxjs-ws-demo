@@ -31,33 +31,44 @@ interface SocketState {
 	wsSubjectConfig?: WebSocketSubjectConfig<GenericWsMessage>;
 	subscribeUnsubscribeMessages: SubscriptionMessage[];
 	socket?: WebSocketSubject<GenericWsMessage>;
+	connectError?: unknown;
 }
 
 @Injectable({
 	providedIn: 'root',
 })
 export class SocketService extends ComponentStore<SocketState> {
+	private messages = new Subject<unknown>();
+	private readonly connected = new Subject<void>();
+
+	private readonly baseUri$ = this.select(({ baseUri }) => baseUri);
+	private readonly wsSubjectConfig$ = this.select(({ wsSubjectConfig }) => wsSubjectConfig);
+
 	/**
 	 * The current state of the websocket connection.
 	 */
 	readonly isConnected$ = this.statsStore.isConnected$;
 
-	private messagesSubject = new Subject<unknown>();
-	private messages$ = this.messagesSubject.asObservable();
-
-	private readonly baseUri$ = this.select(({ baseUri }) => baseUri);
-	private readonly wsSubjectConfig$ = this.select(({ wsSubjectConfig }) => wsSubjectConfig);
+	/**
+	 * A stream of messages to send
+	 */
+	private messages$ = this.messages.asObservable();
 
 	private readonly subscribeUnsubscribeMessages$ = this.select(
 		({ subscribeUnsubscribeMessages }) => subscribeUnsubscribeMessages,
 	);
+
 	private readonly socket$ = this.select(({ socket }) => socket);
 
-	private readonly connected = new Subject<void>();
 	/**
 	 * A stream that emits whenever the websocket connects.
 	 */
 	readonly connected$ = this.connected.asObservable();
+
+	/**
+	 * A stream of errors that occurred when trying to connect to the websocket.
+	 */
+	readonly connectError$ = this.select(({ connectError }) => connectError);
 
 	/**
 	 * A stream of messages to send, combined with whether the websocket is connected.
@@ -69,7 +80,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	);
 
 	/**
-	 * Constructs the WebSocketSubjectConfig object, with open and close observers to handle connection status, and trying to re-connect when disconnected.
+	 * Constructs the WebSocketSubjectConfig object, with open and close observers to handle connection status,
+	 * and trying to re-connect when disconnected.
 	 */
 	private readonly setUpWebSocketSubjectConfig = this.effect((trigger$) =>
 		trigger$.pipe(
@@ -95,9 +107,10 @@ export class SocketService extends ComponentStore<SocketState> {
 							DEBUG_MODE && console.log('openObserver', event);
 							this.statsStore.bumpConnections();
 
+							this.patchState({ connectError: undefined });
 							this.statsStore.setConnected(true);
 
-							// Signal connected
+							// Notify connected
 							this.connected.next();
 						},
 					},
@@ -123,9 +136,11 @@ export class SocketService extends ComponentStore<SocketState> {
 				return socket.pipe(
 					tap((msg) => {
 						this.statsStore.bumpMessagesReceived();
-						this.messagesSubject.next(msg);
+						this.messages.next(msg);
 					}),
 					catchError((err) => {
+						this.patchState({ connectError: err });
+
 						DEBUG_MODE && console.log('error in connect', err);
 						return EMPTY;
 					}),
