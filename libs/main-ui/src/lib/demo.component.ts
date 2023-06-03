@@ -9,7 +9,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { ComponentStore } from '@ngrx/component-store';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService, SocketStatsStore } from '@rxjs-ws-demo/web-sockets';
-import { Observable, Subject, skip, tap } from 'rxjs';
+import { Observable, skip, tap } from 'rxjs';
 import { ClientConnectionWatcherComponent } from './client-connection-watcher.component';
 import { ConnectionStatusComponent } from './connection-status.component';
 import { MessengerComponent } from './messenger.component';

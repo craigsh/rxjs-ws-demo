@@ -135,7 +135,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	);
 
 	/**
-	 * Disconnects the socket.
+	 * Disconnects the socket. For simulation purposes. The service will automatically try to reconnect.
 	 */
 	readonly disconnect = this.effect((trigger$) =>
 		trigger$.pipe(
