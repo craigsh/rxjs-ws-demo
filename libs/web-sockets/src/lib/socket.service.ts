@@ -44,7 +44,7 @@ interface SocketState {
 	providedIn: 'root',
 })
 export class SocketService extends ComponentStore<SocketState> {
-	private messages = new Subject<unknown>();
+	private messages = new Subject<WsMessageContent>();
 	private readonly connected = new Subject<void>();
 
 	private readonly baseUri$ = this.select(({ baseUri }) => baseUri);
@@ -56,7 +56,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	readonly isConnected$ = this.statsStore.isConnected$;
 
 	/**
-	 * A stream of messages to send
+	 * A stream of messages received
 	 */
 	private messages$ = this.messages.asObservable();
 
@@ -136,7 +136,7 @@ export class SocketService extends ComponentStore<SocketState> {
 			switchMap(([, config]) => {
 				assertDefined(config);
 
-				// Create a new socket, and listen for messages, pushing them into the messagesSubject.
+				// Create a new socket and listen for messages, pushing them into the messages Subject.
 				const socket = new WebSocketSubject(config);
 				this.patchState({ socket });
 				return socket.pipe(
@@ -279,7 +279,7 @@ export class SocketService extends ComponentStore<SocketState> {
 		this.queueSubscribeUnsubscribeMessage(msg);
 
 		return this.messages$.pipe(
-			map((msg) => msg as T),
+			map((msg) => msg as SubscriptionEvent),
 			tap((msg) => {
 				DEBUG_MODE && console.log('received notification', msg);
 			}),
@@ -290,6 +290,7 @@ export class SocketService extends ComponentStore<SocketState> {
 					return eventType.includes(msg.eventType);
 				}
 			}),
+			map((msg) => msg as T),
 			finalize(() => {
 				// Caller has unsubscribed from the stream.
 				// Send the message to the server to unsubscribe from the event type(s).
