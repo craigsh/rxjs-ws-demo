@@ -1,4 +1,4 @@
-# RxjsWsDemo
+# RxJs-Ws-Demo
 
 ## RxJs Robust Websockets demo app
 
