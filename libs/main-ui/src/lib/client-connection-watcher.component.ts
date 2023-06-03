@@ -43,21 +43,21 @@ const MAX_MESSAGES = 4;
 		`
 			:host {
 				display: block;
-			}
 
-			button {
-				position: absolute;
-				right: 0;
-				top: 0;
-			}
+				button {
+					position: absolute;
+					right: 0;
+					top: 0;
+				}
 
-			.no-connections {
-				color: #999;
-				font-size: 0.8rem;
-			}
+				.no-connections {
+					color: #999;
+					font-size: 0.8rem;
+				}
 
-			.message {
-				padding: 8px 0;
+				.message {
+					padding: 8px 0;
+				}
 			}
 		`,
 	],

@@ -31,12 +31,12 @@ import { MatButtonModule } from '@angular/material/button';
 		`
 			:host {
 				display: block;
-			}
 
-			button {
-				position: absolute;
-				right: 0;
-				top: 0;
+				button {
+					position: absolute;
+					right: 0;
+					top: 0;
+				}
 			}
 		`,
 	],
