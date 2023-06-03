@@ -1,14 +1,14 @@
-# RxJs-Ws-Demo
+# RxJS-Ws-Demo
 
-## RxJs Robust Websockets demo app
+## RxJS Robust Websockets demo app
 
 For ng-conf 2023 ⚡ **Lightning talks Lollapalooza!** ⚡
 
 ## Running the apps
 
-The demo consists of a NestJs back-end, which runs the server logic of the web sockets, and an Angular front-end to demonstrate the features.
+The demo consists of a NestJS back-end, which runs the server logic of the web sockets, and an Angular front-end to demonstrate the features.
 
-### Run the NestJs server
+### Run the NestJS server
 
 npx nx serve api
 
