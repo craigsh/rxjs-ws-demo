@@ -4,18 +4,21 @@ export interface Message {
 
 export type EventType = 'message' | 'connect' | 'disconnect';
 
-export type SubscriptionMessage = {
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface WsMessageContent {}
+
+export interface SubscriptionMessage extends WsMessageContent {
 	eventType: EventType;
 	isSubscribe: boolean;
 	clientId?: string;
-};
+}
 
-export type SubscriptionEvent = {
+export interface SubscriptionEvent extends WsMessageContent {
 	eventType: EventType;
 	body: unknown;
-};
+}
 
-export type GenericWsMessage = {
+export interface WsMessage {
 	event: string;
-	data: SubscriptionMessage;
-};
+	data: WsMessageContent;
+}

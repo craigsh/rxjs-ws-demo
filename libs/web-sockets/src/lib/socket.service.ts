@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Inject, Injectable } from '@angular/core';
 import { ComponentStore } from '@ngrx/component-store';
-import { EventType, GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { EventType, WsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
 import { assertDefined } from '@rxjs-ws-demo/utils';
 import {
 	EMPTY,
@@ -28,9 +28,9 @@ const DEBUG_MODE = true;
 
 interface SocketState {
 	baseUri: string;
-	wsSubjectConfig?: WebSocketSubjectConfig<GenericWsMessage>;
+	wsSubjectConfig?: WebSocketSubjectConfig<WsMessage>;
 	subscribeUnsubscribeMessages: SubscriptionMessage[];
-	socket?: WebSocketSubject<GenericWsMessage>;
+	socket?: WebSocketSubject<WsMessage>;
 	connectError?: unknown;
 }
 
@@ -92,7 +92,7 @@ export class SocketService extends ComponentStore<SocketState> {
 				if (DEBUG_MODE) {
 					console.log('Web socket url', url);
 				}
-				const config: WebSocketSubjectConfig<GenericWsMessage> = {
+				const config: WebSocketSubjectConfig<WsMessage> = {
 					url,
 					closeObserver: {
 						next: (event) => {
