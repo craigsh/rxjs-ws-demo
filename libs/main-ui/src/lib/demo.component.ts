@@ -9,13 +9,21 @@ import { SocketService, SocketStatsStore } from '@rxjs-ws-demo/web-sockets';
 import { Observable, Subject, skip, switchMap, takeUntil, tap } from 'rxjs';
 import { ConnectionStatusComponent } from './connection-status.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ClientConnectionWatcherComponent } from './client-connection-watcher.component';
 
 export type NoState = Record<string, never>;
 
 @Component({
 	selector: 'mu-demo',
 	standalone: true,
-	imports: [CommonModule, MatToolbarModule, MatButtonModule, ConnectionStatusComponent, MatSnackBarModule],
+	imports: [
+		CommonModule,
+		MatToolbarModule,
+		MatButtonModule,
+		ConnectionStatusComponent,
+		MatSnackBarModule,
+		ClientConnectionWatcherComponent,
+	],
 	template: `
 		<mat-toolbar color="primary">RxJs Web Sockets Demo </mat-toolbar>
 		<div class="wrapper">
@@ -30,7 +38,11 @@ export type NoState = Record<string, never>;
 				<button mat-raised-button (click)="postMessage()">Post message</button>
 			</div>
 
-			<mu-connection-status></mu-connection-status>
+			<div class="panels">
+				<mu-connection-status></mu-connection-status>
+
+				<mu-client-connection-watcher></mu-client-connection-watcher>
+			</div>
 		</div>
 	`,
 	styles: [
@@ -48,6 +60,12 @@ export type NoState = Record<string, never>;
 					align-items: center;
 					gap: 8px;
 					padding: 8px;
+				}
+
+				.panels {
+					display: flex;
+					flex-direction: column;
+					gap: 12px;
 				}
 			}
 		`,

@@ -207,6 +207,11 @@ export class SocketService extends ComponentStore<SocketState> {
 		this.watchQueue(this.toSend$);
 	}
 
+	/**
+	 *
+	 * @param eventType
+	 * @returns
+	 */
 	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
 		return this.setUpSubscription<T>(eventType).pipe(
 			filter((msg) => {
@@ -215,6 +220,11 @@ export class SocketService extends ComponentStore<SocketState> {
 		);
 	}
 
+	/**
+	 *
+	 * @param eventType
+	 * @returns
+	 */
 	private setUpSubscription<T extends SubscriptionEvent>(eventType: EventType): Observable<T> {
 		const msg = {
 			eventType,
