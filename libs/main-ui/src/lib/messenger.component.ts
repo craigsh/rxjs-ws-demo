@@ -134,7 +134,7 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 		isConnected: this.socketService.isConnected$,
 	});
 
-	readonly listenForMessages = this.effect((trigger$: Observable<void>) =>
+	readonly listenForMessages = this.effect((trigger$) =>
 		trigger$.pipe(
 			switchMap(() =>
 				this.socketService.subscribeToEventType('message').pipe(
@@ -161,6 +161,10 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 			messages: [],
 		});
 
+		// Set up subscription immediately.
+		this.listenForMessages();
+
+		// Resubscribe whenever the socket reconnects
 		this.listenForMessages(this.socketService.connected$);
 	}
 }

@@ -76,9 +76,13 @@ export class ClientConnectionWatcherComponent extends ComponentStore<ClientConne
 	constructor() {
 		super({ connectionMessages: [] });
 
-		// Subscribe to connect and disconnect events from the server
+		// Immediately Subscribe to connect and disconnect events from the server
 		this.watchClientConnections();
 		this.watchClientDisconnections();
+
+		// Re-subscribe to connect and disconnect events from the server when the socket reconnects
+		this.watchClientConnections(this.socket.connected$);
+		this.watchClientDisconnections(this.socket.connected$);
 	}
 
 	private readonly watchClientConnections = this.effect((trigger$) =>
