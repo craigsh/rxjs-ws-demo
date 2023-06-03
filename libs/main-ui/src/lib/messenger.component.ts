@@ -53,7 +53,7 @@ const MAX_MESSAGES = 100;
 							<button
 								mat-raised-button
 								color="primary"
-								[disabled]="!message.value"
+								[disabled]="!message.value || !vm.isConnected"
 								(click)="sendMessage(message.value); message.value = ''"
 							>
 								Send
@@ -129,9 +129,12 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 
 	readonly messages$ = this.select(({ messages }) => messages);
 
-	readonly vm$ = this.select({ messages: this.messages$ });
+	readonly vm$ = this.select({
+		messages: this.messages$,
+		isConnected: this.socketService.isConnected$,
+	});
 
-	readonly listenForMessages = this.effect((trigger$) =>
+	readonly listenForMessages = this.effect((trigger$: Observable<void>) =>
 		trigger$.pipe(
 			switchMap(() =>
 				this.socketService.subscribeToEventType('message').pipe(
@@ -158,6 +161,6 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 			messages: [],
 		});
 
-		this.listenForMessages();
+		this.listenForMessages(this.socketService.connected$);
 	}
 }

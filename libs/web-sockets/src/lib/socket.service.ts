@@ -37,6 +37,9 @@ interface SocketState {
 	providedIn: 'root',
 })
 export class SocketService extends ComponentStore<SocketState> {
+	/**
+	 * The current state of the websocket connection.
+	 */
 	readonly isConnected$ = this.statsStore.isConnected$;
 
 	private messagesSubject = new Subject<unknown>();
@@ -49,6 +52,12 @@ export class SocketService extends ComponentStore<SocketState> {
 		({ subscribeUnsubscribeMessages }) => subscribeUnsubscribeMessages,
 	);
 	private readonly socket$ = this.select(({ socket }) => socket);
+
+	private readonly connected = new Subject<void>();
+	/**
+	 * A stream that emits whenever the websocket connects.
+	 */
+	readonly connected$ = this.connected.asObservable();
 
 	/**
 	 * A stream of messages to send, combined with whether the websocket is connected.
@@ -87,6 +96,9 @@ export class SocketService extends ComponentStore<SocketState> {
 							this.statsStore.bumpConnections();
 
 							this.statsStore.setConnected(true);
+
+							// Signal connected
+							this.connected.next();
 						},
 					},
 				};
@@ -118,6 +130,20 @@ export class SocketService extends ComponentStore<SocketState> {
 						return EMPTY;
 					}),
 				);
+			}),
+		),
+	);
+
+	/**
+	 * Disconnects the socket.
+	 */
+	readonly disconnect = this.effect((trigger$) =>
+		trigger$.pipe(
+			withLatestFrom(this.isConnected$, this.socket$),
+			tap(([, isConnected, socket]) => {
+				if (isConnected && socket) {
+					socket.complete();
+				}
 			}),
 		),
 	);

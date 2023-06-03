@@ -35,19 +35,21 @@ interface DemoState {
 		MessengerComponent,
 	],
 	template: `
-		<mat-toolbar color="primary">RxJs Web Sockets Demo </mat-toolbar>
+		<mat-toolbar color="primary">
+			<div class="content">
+				<div class="title">RxJs Web Sockets Demo</div>
+				<h1>Powered by Angular and NestJS</h1>
+			</div>
+		</mat-toolbar>
+
 		<ng-container *ngIf="vm$ | async as vm">
 			<div class="wrapper">
-				<h1>Powered by Angular and NestJS</h1>
+				<div class="header">
+					<h1>A demo web-sockets application</h1>
+					<button mat-raised-button (click)="disconnect()">Disconnect!</button>
+				</div>
 
-				<!-- <div>Message: {{ hello$ | async | json }}</div> -->
-
-				<div class="buttons">
-					<!-- <button mat-raised-button (click)="subscribe()">Subscribe</button>
-					<button mat-raised-button (click)="subscribeConnects()">Subscribe connects</button>
-					<button mat-raised-button (click)="endSub.next()">Unsubscribe</button>
-					<button mat-raised-button (click)="postMessage()">Post message</button> -->
-
+				<div class="toggles">
 					<mat-slide-toggle [ngModel]="vm.showingMessenger" (change)="setShowingMessenger($event.checked)"
 						>Show messenger</mat-slide-toggle
 					>
@@ -85,11 +87,41 @@ interface DemoState {
 				display: block;
 				height: 100%;
 
-				.wrapper {
-					padding: 12px;
+				mat-toolbar {
+					.content {
+						width: 100%;
+						display: flex;
+						align-items: center;
+
+						.title {
+							flex: 1;
+						}
+
+						h1 {
+							justify-self: flex-end;
+						}
+					}
 				}
 
-				.buttons {
+				.wrapper {
+					padding: 12px;
+
+					.header {
+						border: 1px solid #ccc;
+						background-color: #eee;
+						border-radius: 8px;
+						padding: 8px;
+
+						h1 {
+							margin: 8px;
+							font-size: 1.5rem;
+						}
+
+						margin-bottom: 8px;
+					}
+				}
+
+				.toggles {
 					display: flex;
 					align-items: center;
 					gap: 8px;
@@ -111,9 +143,6 @@ export class DemoComponent extends ComponentStore<DemoState> {
 	protected socketService = inject(SocketService);
 	private socketStats = inject(SocketStatsStore);
 	private snackBar = inject(MatSnackBar);
-
-	readonly endSub = new Subject<void>();
-	private readonly endSub$ = this.endSub.asObservable();
 
 	readonly showingConnectionStatus$ = this.select(({ showingConnectionStatus }) => showingConnectionStatus);
 	readonly showingConnectionWatcher$ = this.select(({ showingConnectionWatcher }) => showingConnectionWatcher);
@@ -172,39 +201,11 @@ export class DemoComponent extends ComponentStore<DemoState> {
 		),
 	);
 
-	// readonly subscribe = this.effect((trigger$) =>
-	// 	trigger$.pipe(
-	// 		switchMap(() => {
-	// 			return this.socketService.subscribeToEventType('message').pipe(
-	// 				takeUntil(this.endSub$),
-	// 				tap((data) => {
-	// 					console.log('data - via WS event', data);
-	// 				}),
-	// 			);
-	// 		}),
-	// 	),
-	// );
-
-	// readonly subscribeConnects = this.effect((trigger$) =>
-	// 	trigger$.pipe(
-	// 		switchMap(() => {
-	// 			return this.socketService.subscribeToEventType('connect').pipe(
-	// 				takeUntil(this.endSub$),
-	// 				tap((data) => {
-	// 					console.log('connect event', data);
-	// 				}),
-	// 			);
-	// 		}),
-	// 	),
-	// );
-
-	// readonly postMessage = this.effect((trigger$) =>
-	// 	trigger$.pipe(
-	// 		switchMap(() => {
-	// 			return this.http.post('/api/message', {
-	// 				message: 'Hello from Angular',
-	// 			});
-	// 		}),
-	// 	),
-	// );
+	readonly disconnect = this.effect((trigger$) =>
+		trigger$.pipe(
+			tap(() => {
+				this.socketService.disconnect();
+			}),
+		),
+	);
 }
