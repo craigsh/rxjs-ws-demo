@@ -12,24 +12,27 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ClientConnectionWatcherComponent } from './client-connection-watcher.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FormsModule } from '@angular/forms';
+import { MessengerComponent } from './messenger.component';
 
 interface DemoState {
 	showingConnectionStatus: boolean;
 	showingConnectionWatcher: boolean;
+	showingMessenger: boolean;
 }
 
 @Component({
 	selector: 'mu-demo',
 	standalone: true,
 	imports: [
-		CommonModule,
-		MatToolbarModule,
-		MatButtonModule,
-		ConnectionStatusComponent,
-		MatSnackBarModule,
 		ClientConnectionWatcherComponent,
-		MatSlideToggleModule,
+		CommonModule,
+		ConnectionStatusComponent,
 		FormsModule,
+		MatButtonModule,
+		MatSlideToggleModule,
+		MatSnackBarModule,
+		MatToolbarModule,
+		MessengerComponent,
 	],
 	template: `
 		<mat-toolbar color="primary">RxJs Web Sockets Demo </mat-toolbar>
@@ -37,14 +40,17 @@ interface DemoState {
 			<div class="wrapper">
 				<h1>Powered by Angular and NestJS</h1>
 
-				<div>Message: {{ hello$ | async | json }}</div>
+				<!-- <div>Message: {{ hello$ | async | json }}</div> -->
 
 				<div class="buttons">
-					<button mat-raised-button (click)="subscribe()">Subscribe</button>
+					<!-- <button mat-raised-button (click)="subscribe()">Subscribe</button>
 					<button mat-raised-button (click)="subscribeConnects()">Subscribe connects</button>
 					<button mat-raised-button (click)="endSub.next()">Unsubscribe</button>
-					<button mat-raised-button (click)="postMessage()">Post message</button>
+					<button mat-raised-button (click)="postMessage()">Post message</button> -->
 
+					<mat-slide-toggle [ngModel]="vm.showingMessenger" (change)="setShowingMessenger($event.checked)"
+						>Show messenger</mat-slide-toggle
+					>
 					<mat-slide-toggle
 						[ngModel]="vm.showingConnectionStatus"
 						(change)="setShowingConnectionStatus($event.checked)"
@@ -67,6 +73,8 @@ interface DemoState {
 						*ngIf="vm.showingConnectionWatcher"
 						(closed)="setShowingConnectionWatcher(false)"
 					/>
+
+					<mu-messenger *ngIf="vm.showingMessenger" (closed)="setShowingMessenger(false)" />
 				</div>
 			</div>
 		</ng-container>
@@ -109,18 +117,21 @@ export class DemoComponent extends ComponentStore<DemoState> {
 
 	readonly showingConnectionStatus$ = this.select(({ showingConnectionStatus }) => showingConnectionStatus);
 	readonly showingConnectionWatcher$ = this.select(({ showingConnectionWatcher }) => showingConnectionWatcher);
+	readonly showingMessenger$ = this.select(({ showingMessenger }) => showingMessenger);
 
 	readonly vm$ = this.select({
 		showingConnectionStatus: this.showingConnectionStatus$,
 		showingConnectionWatcher: this.showingConnectionWatcher$,
+		showingMessenger: this.showingMessenger$,
 	});
 
 	hello$ = this.http.get<Message>('/api/hello');
 
 	constructor() {
 		super({
-			showingConnectionStatus: true,
-			showingConnectionWatcher: true,
+			showingConnectionStatus: false,
+			showingConnectionWatcher: false,
+			showingMessenger: true,
 		});
 
 		this.watchConnectedChanged(this.socketStats.isConnected$);
@@ -138,6 +149,14 @@ export class DemoComponent extends ComponentStore<DemoState> {
 		showing$.pipe(
 			tap((showing) => {
 				this.patchState({ showingConnectionWatcher: showing });
+			}),
+		),
+	);
+
+	readonly setShowingMessenger = this.effect((showing$: Observable<boolean>) =>
+		showing$.pipe(
+			tap((showing) => {
+				this.patchState({ showingMessenger: showing });
 			}),
 		),
 	);
