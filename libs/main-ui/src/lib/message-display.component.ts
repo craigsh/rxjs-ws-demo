@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 
 @Component({
@@ -8,6 +8,7 @@ import { Message } from '@rxjs-ws-demo/api-interfaces';
 	imports: [CommonModule],
 	template: `
 		<div class="message" [class.is-me]="message.clientId === thisClientId">
+			<span>{{ message.clientId === thisClientId ? '➡️' : '⬅️' }}</span>
 			<span class="sent">{{ message.sentAt }}</span>
 			<span class="message">{{ message.message }}</span>
 		</div>
