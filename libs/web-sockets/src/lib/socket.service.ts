@@ -1,7 +1,13 @@
 import { DOCUMENT } from '@angular/common';
 import { Inject, Injectable } from '@angular/core';
 import { ComponentStore } from '@ngrx/component-store';
-import { EventType, WsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import {
+	EventType,
+	WsMessage,
+	SubscriptionEvent,
+	SubscriptionMessage,
+	WsMessageContent,
+} from '@rxjs-ws-demo/api-interfaces';
 import { assertDefined } from '@rxjs-ws-demo/utils';
 import {
 	EMPTY,
@@ -29,7 +35,7 @@ const DEBUG_MODE = true;
 interface SocketState {
 	baseUri: string;
 	wsSubjectConfig?: WebSocketSubjectConfig<WsMessage>;
-	subscribeUnsubscribeMessages: SubscriptionMessage[];
+	subscribeUnsubscribeMessages: WsMessageContent[];
 	socket?: WebSocketSubject<WsMessage>;
 	connectError?: unknown;
 }
@@ -191,7 +197,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	/**
 	 * Watches the queue for changes, and when the socket exists, sends the messages in the queue.
 	 */
-	readonly watchQueue = this.effect((queue$: Observable<SubscriptionMessage[]>) =>
+	readonly watchQueue = this.effect((queue$: Observable<WsMessageContent[]>) =>
 		queue$.pipe(
 			withLatestFrom(this.socket$),
 			tap(([queue, socket]) => {
