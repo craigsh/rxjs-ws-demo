@@ -255,7 +255,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	}
 
 	/**
-	 *
+	 * Begins subscribing to a type of events or events.
+	 * Returns an observable that will emit when the event is received.
 	 * @param eventType
 	 * @returns
 	 */
@@ -274,7 +275,7 @@ export class SocketService extends ComponentStore<SocketState> {
 			isSubscribe: true,
 		} as SubscriptionMessage;
 
-		// Send a message to the server to subscribe to the notification.
+		// Send a message to the server to begin subscribe to the event type(s).
 		this.queueSubscribeUnsubscribeMessage(msg);
 
 		return this.messages$.pipe(
@@ -290,7 +291,8 @@ export class SocketService extends ComponentStore<SocketState> {
 				}
 			}),
 			finalize(() => {
-				// Caller has unsubscribed from the stream, so send the message to the server to unsubscribe from the event.
+				// Caller has unsubscribed from the stream.
+				// Send the message to the server to unsubscribe from the event type(s).
 				const unsubscribeMessage: SubscriptionMessage = {
 					...msg,
 					isSubscribe: false,
