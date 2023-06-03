@@ -22,7 +22,7 @@ const MAX_MESSAGES = 4;
 		<ng-container *ngIf="vm$ | async as vm">
 			<mat-card>
 				<mat-card-header>
-					<mat-card-title>Client connection events (last {{ MAX_MESSAGES }})</mat-card-title>
+					<mat-card-title>Client connection events (other clients - last {{ MAX_MESSAGES }})</mat-card-title>
 					<button mat-icon-button (click)="closed.emit()"><mat-icon>close</mat-icon></button>
 				</mat-card-header>
 				<mat-card-content>
