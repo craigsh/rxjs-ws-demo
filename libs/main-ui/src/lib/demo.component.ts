@@ -7,13 +7,14 @@ import { ComponentStore } from '@ngrx/component-store';
 import { Message } from '@rxjs-ws-demo/api-interfaces';
 import { SocketService } from '@rxjs-ws-demo/web-sockets';
 import { Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { ConnectionStatusComponent } from './connection-status.component';
 
 export type NoState = Record<string, never>;
 
 @Component({
 	selector: 'mu-demo',
 	standalone: true,
-	imports: [CommonModule, MatToolbarModule, MatButtonModule],
+	imports: [CommonModule, MatToolbarModule, MatButtonModule, ConnectionStatusComponent],
 	template: `
 		<mat-toolbar color="primary">RxJs Web Sockets Demo </mat-toolbar>
 		<div class="wrapper">
@@ -25,6 +26,8 @@ export type NoState = Record<string, never>;
 			<button mat-raised-button (click)="subscribeConnects()">Subscribe connects</button>
 			<button mat-raised-button (click)="endSub.next()">Unsubscribe</button>
 			<button mat-raised-button (click)="postMessage()">Post message</button>
+
+			<mu-connection-status></mu-connection-status>
 		</div>
 	`,
 	styles: [

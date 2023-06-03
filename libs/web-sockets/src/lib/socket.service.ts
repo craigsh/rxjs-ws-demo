@@ -1,5 +1,8 @@
+import { DOCUMENT } from '@angular/common';
 import { Inject, Injectable } from '@angular/core';
 import { ComponentStore } from '@ngrx/component-store';
+import { EventType, GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { assertDefined } from '@rxjs-ws-demo/utils';
 import {
 	EMPTY,
 	Observable,
@@ -17,10 +20,7 @@ import {
 	withLatestFrom,
 } from 'rxjs';
 import { WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
-import { assertDefined } from '@rxjs-ws-demo/utils';
-import { DOCUMENT } from '@angular/common';
-import { AppStateStore } from './app.state';
-import { EventType, GenericWsMessage, SubscriptionEvent, SubscriptionMessage } from '@rxjs-ws-demo/api-interfaces';
+import { SocketStatsStore } from './socket-stats.store';
 
 const RETRY_SECONDS = 5;
 const MAX_RETRIES = 30;
@@ -30,23 +30,14 @@ interface SocketState {
 	baseUri: string;
 	wsSubjectConfig?: WebSocketSubjectConfig<GenericWsMessage>;
 	subscribeUnsubscribeMessages: SubscriptionMessage[];
-	isConnected: boolean;
 	socket?: WebSocketSubject<GenericWsMessage>;
-	subscriptionCount: number;
-	connections: number;
-	reconnectionTries: number;
-	messagesReceived: number;
 }
 
 @Injectable({
 	providedIn: 'root',
 })
 export class SocketService extends ComponentStore<SocketState> {
-	readonly isConnected$ = this.select(({ isConnected }) => isConnected);
-	readonly subscriptionCount$ = this.select(({ subscriptionCount }) => subscriptionCount);
-	readonly connections$ = this.select(({ connections }) => connections);
-	readonly reconnectionTries$ = this.select(({ reconnectionTries }) => reconnectionTries);
-	readonly messagesReceived$ = this.select(({ messagesReceived }) => messagesReceived);
+	readonly isConnected$ = this.statsStore.isConnected$;
 
 	private messagesSubject = new Subject<unknown>();
 	private messages$ = this.messagesSubject.asObservable();
@@ -73,8 +64,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	 */
 	private readonly setUpWebSocketSubjectConfig = this.effect((trigger$) =>
 		trigger$.pipe(
-			withLatestFrom(this.baseUri$, this.connections$),
-			tap(([, baseUri, connections]) => {
+			withLatestFrom(this.baseUri$),
+			tap(([, baseUri]) => {
 				const url = baseUri.replace(/^http/, 'ws') + 'ws';
 
 				if (DEBUG_MODE) {
@@ -85,15 +76,17 @@ export class SocketService extends ComponentStore<SocketState> {
 					closeObserver: {
 						next: (event) => {
 							DEBUG_MODE && console.log('closeObserver', event);
-							this.patchState({ isConnected: false });
+							this.statsStore.setConnected(false);
+
 							this.tryReconnect();
 						},
 					},
 					openObserver: {
 						next: (event) => {
 							DEBUG_MODE && console.log('openObserver', event);
-							connections++;
-							this.patchState({ isConnected: true, connections });
+							this.statsStore.bumpConnections();
+
+							this.statsStore.setConnected(true);
 						},
 					},
 				};
@@ -108,8 +101,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	 */
 	private readonly connect = this.effect((trigger$) =>
 		trigger$.pipe(
-			withLatestFrom(this.wsSubjectConfig$, this.messagesReceived$),
-			switchMap(([, config, messagesReceived]) => {
+			withLatestFrom(this.wsSubjectConfig$),
+			switchMap(([, config]) => {
 				assertDefined(config);
 
 				// Create a new socket, and listen for messages, pushing them into the messagesSubject.
@@ -117,9 +110,7 @@ export class SocketService extends ComponentStore<SocketState> {
 				this.patchState({ socket });
 				return socket.pipe(
 					tap((msg) => {
-						messagesReceived++;
-						this.patchState({ messagesReceived });
-
+						this.statsStore.bumpMessagesReceived();
 						this.messagesSubject.next(msg);
 					}),
 					catchError((err) => {
@@ -138,16 +129,15 @@ export class SocketService extends ComponentStore<SocketState> {
 		trigger$.pipe(
 			exhaustMap(() => {
 				return timer(RETRY_SECONDS * 1000).pipe(
-					withLatestFrom(this.isConnected$, this.reconnectionTries$),
-					takeWhile(([, isConnected, reconnectionTries], index) => {
+					withLatestFrom(this.isConnected$),
+					takeWhile(([, isConnected]) => {
 						if (!isConnected) {
-							reconnectionTries++;
-							this.patchState({ reconnectionTries });
+							this.statsStore.bumpConnectionRetries();
 
-							DEBUG_MODE && console.log('Attempting re-connect to websocket - try #' + reconnectionTries);
+							//DEBUG_MODE && console.log('Attempting re-connect to websocket - try #' + reconnectionTries);
 						}
 
-						return !isConnected && index < MAX_RETRIES;
+						return !isConnected && this.statsStore.reconnectionTries < MAX_RETRIES;
 					}),
 					tap(() => {
 						this.connect();
@@ -187,51 +177,30 @@ export class SocketService extends ComponentStore<SocketState> {
 	);
 
 	/**
-	 * Adds a message to the queue to send to Jade to subscribe or unsubscribe to/from a notification.
+	 * Adds a message to the queue to send to the server to subscribe or unsubscribe to/from a notification.
 	 */
 	private readonly queueSubscribeUnsubscribeMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
 		msg$.pipe(
-			withLatestFrom(this.subscribeUnsubscribeMessages$, this.subscriptionCount$),
-			tap(([msg, queue, subscriptionCount]) => {
+			withLatestFrom(this.subscribeUnsubscribeMessages$),
+			tap(([msg, queue]) => {
 				if (msg.isSubscribe) {
-					subscriptionCount++;
+					this.statsStore.bumpSubscriptionCount();
 				} else {
-					subscriptionCount--;
+					this.statsStore.dropSubscriptionCount();
 				}
 
-				this.patchState({ subscribeUnsubscribeMessages: [...queue, msg], subscriptionCount });
+				this.patchState({ subscribeUnsubscribeMessages: [...queue, msg] });
 			}),
 		),
 	);
 
-	/**
-	 * Adds a message to the queue to send to Jade to subscribe or unsubscribe to/from a notification.
-	 */
-	private readonly queueSubscribeMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
-		msg$.pipe(
-			withLatestFrom(this.subscribeUnsubscribeMessages$, this.subscriptionCount$),
-			tap(([msg, queue, subscriptionCount]) => {
-				if (msg.isSubscribe) {
-					subscriptionCount++;
-				} else {
-					subscriptionCount--;
-				}
-
-				this.patchState({ subscribeUnsubscribeMessages: [...queue, msg], subscriptionCount });
-			}),
-		),
-	);
-
-	constructor(@Inject(DOCUMENT) document: Document, private appState: AppStateStore) {
+	constructor(@Inject(DOCUMENT) document: Document, private statsStore: SocketStatsStore) {
 		super({
 			baseUri: document.baseURI,
 			subscribeUnsubscribeMessages: [],
-			isConnected: false,
-			subscriptionCount: 0,
-			connections: 0,
-			reconnectionTries: 0,
-			messagesReceived: 0,
 		});
+
+		this.statsStore.setConnected(false);
 
 		this.setUpWebSocketSubjectConfig();
 		this.connect();
@@ -253,7 +222,7 @@ export class SocketService extends ComponentStore<SocketState> {
 		} as SubscriptionMessage;
 
 		// Send a message to Jade to subscribe to the notification.
-		this.queueSubscribeMessage(msg);
+		this.queueSubscribeUnsubscribeMessage(msg);
 
 		return this.messages$.pipe(
 			map((msg) => msg as T),
@@ -273,87 +242,4 @@ export class SocketService extends ComponentStore<SocketState> {
 			}),
 		);
 	}
-
-	// /**
-	//  * Begins a Jade class notification, returning an Observable of the type.
-	//  * @param jadeClassName The Jade class name
-	//  * @param eventType The Jade event type number to subscribe to
-	//  * @param ignoreSelf Whether to ignore messages from the current session
-	//  * @returns
-	//  */
-	// beginClassNotification<T extends NotificationJsonModel = NotificationJsonModel>(
-	// 	jadeClassName: string,
-	// 	eventType: number,
-	// 	ignoreSelf = false,
-	// ): Observable<T> {
-	// 	return this.setUpNotification<T>({ jadeClassName, eventType }).pipe(
-	// 		filter((msg) => {
-	// 			if (ignoreSelf && msg.note_causer_sessionId === this.appState.sessionId) {
-	// 				return false;
-	// 			}
-
-	// 			return true;
-	// 		}),
-	// 	);
-	// }
-
-	// /**
-	//  * Begins a Jade session notification, returning an Observable of the type.
-	//  * @param eventType The Jade event type number to subscribe to
-	//  * @returns
-	//  */
-	// beginSessionNotification<T extends NotificationJsonModel = NotificationJsonModel>(
-	// 	eventType: number,
-	// ): Observable<T> {
-	// 	return this.setUpNotification({ eventType, session: true });
-	// }
-
-	// /**
-	//  * Sets up the notification in Jade, and returns an Observable of messages of the type.
-	//  * @param opts
-	//  * @returns
-	//  */
-	// private setUpNotification<T extends NotificationJsonModel = NotificationJsonModel>(opts: {
-	// 	jadeClassName?: string;
-	// 	eventType: number;
-	// 	session?: boolean;
-	// }) {
-	// 	opts.jadeClassName ||= '';
-	// 	opts.session ||= false;
-
-	// 	const sessionOid = opts.session ? this.appState.sessionId : '';
-
-	// 	const msg = {
-	// 		// $type: Types.WebSocketSubscriptionMsg,
-	// 		className: opts.jadeClassName,
-	// 		eventType: opts.eventType,
-	// 		session: opts.session,
-	// 		oid: sessionOid,
-	// 		beginSub: true,
-	// 	} as WebSocketSubscriptionMsg;
-
-	// 	// Send a message to Jade to subscribe to the notification.
-	// 	this.queueSubscribeUnsubscribeMessage(msg);
-
-	// 	return this.messages$.pipe(
-	// 		map((msg) => msg as T),
-	// 		tap((msg) => {
-	// 			DEBUG_MODE && console.log('received notification', msg);
-	// 		}),
-	// 		filter((msg) => {
-	// 			if (opts.session) {
-	// 				return msg.note_eventType === opts.eventType && msg.note_typeName === 'ApiSession';
-	// 			}
-	// 			return msg.note_typeName === opts.jadeClassName && msg.note_eventType === opts.eventType;
-	// 		}),
-	// 		finalize(() => {
-	// 			// Caller has unsubscribed from the stream, so send the message to Jade to unsubscribe from the notification.
-	// 			const unsubscribeMessage = {
-	// 				...msg,
-	// 				beginSub: false,
-	// 			};
-	// 			this.queueSubscribeUnsubscribeMessage(unsubscribeMessage);
-	// 		}),
-	// 	);
-	// }
 }
