@@ -51,6 +51,11 @@ export class SocketService extends ComponentStore<SocketState> {
 	private readonly wsSubjectConfig$ = this.select(({ wsSubjectConfig }) => wsSubjectConfig);
 
 	/**
+	 * Per-eventType counts of how many subscriptions are active.
+	 */
+	private eventTypeSubscriptionCounts: Map<EventType, number> = new Map();
+
+	/**
 	 * The current state of the websocket connection.
 	 */
 	readonly isConnected$ = this.statsStore.isConnected$;
@@ -178,8 +183,6 @@ export class SocketService extends ComponentStore<SocketState> {
 					takeWhile(([, isConnected]) => {
 						if (!isConnected) {
 							this.statsStore.bumpConnectionRetries();
-
-							//DEBUG_MODE && console.log('Attempting re-connect to websocket - try #' + reconnectionTries);
 						}
 
 						return !isConnected && this.statsStore.reconnectionTries < MAX_RETRIES;
@@ -264,13 +267,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * @returns A stream of messages of the specified type.
 	 */
 	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
-		const msg = {
-			eventType,
-			isSubscribe: true,
-		} as SubscriptionMessage;
-
-		// Send a message to the server to begin subscribe to the event type(s).
-		this.queueSubMessage(msg);
+		// Send a message to the server to begin subscribe to each of the event types we're first to subscribe to.
+		this.subscribeIfFirst(eventType);
 
 		return this.messages$.pipe(
 			map((msg) => msg as SubscriptionEvent),
@@ -284,13 +282,60 @@ export class SocketService extends ComponentStore<SocketState> {
 			map((msg) => msg as T),
 			finalize(() => {
 				// Caller has unsubscribed from the stream.
-				// Send the message to the server to unsubscribe from the event type(s).
-				const unsubscribeMessage: SubscriptionMessage = {
-					...msg,
-					isSubscribe: false,
-				};
-				this.queueSubMessage(unsubscribeMessage);
+				// Send the message to the server to  unsubscribe for each eventType we're last to unsubscribe from.
+				this.unsubscribeIfLast(eventType);
 			}),
 		);
+	}
+
+	/**
+	 * Checks if the first subscription to the event type(s) and sends a message to the server to begin subscribing.
+	 * @param eventType
+	 */
+	private subscribeIfFirst(eventType: EventType | EventType[]) {
+		const eventTypes = Array.isArray(eventType) ? eventType : [eventType];
+
+		eventTypes.forEach((eventType) => {
+			const count = this.eventTypeSubscriptionCounts?.get(eventType) ?? 0;
+			if (!count) {
+				const msg = {
+					eventType,
+					isSubscribe: true,
+				} as SubscriptionMessage;
+
+				// Send a message to the server to begin subscribe to the event type(s).
+				this.queueSubMessage(msg);
+			}
+
+			this.eventTypeSubscriptionCounts.set(eventType, count + 1);
+		});
+	}
+
+	/**
+	 * Checks if the last subscription to the event type(s) and sends a message to the server to begin unsubscribing.
+	 * @param eventType
+	 */
+	private unsubscribeIfLast(eventType: EventType | EventType[]) {
+		const eventTypes = Array.isArray(eventType) ? eventType : [eventType];
+
+		eventTypes.forEach((eventType) => {
+			const count = (this.eventTypeSubscriptionCounts?.get(eventType) ?? 0) - 1;
+
+			if (count < 0) {
+				throw new Error(`Unsubscribe called for ${eventType} but no count found`);
+			}
+
+			if (!count) {
+				const msg = {
+					eventType,
+					isSubscribe: false,
+				} as SubscriptionMessage;
+
+				// Send a message to the server to begin subscribe to the event type(s).
+				this.queueSubMessage(msg);
+			}
+
+			this.eventTypeSubscriptionCounts.set(eventType, count);
+		});
 	}
 }
