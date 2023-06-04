@@ -84,13 +84,13 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * This will emit when the websocket is connected, and there are messages to send.
 	 */
 	private readonly toSend$ = combineLatest([this.isConnected$, this.subMessages$]).pipe(
-		filter(([isConnected, queue]) => isConnected && queue.length > 0),
+		filter(([isConnected, queue]) => !!(isConnected && queue.length)),
 		map(([, queue]) => queue),
 	);
 
 	/**
-	 * Constructs the WebSocketSubjectConfig object, with open and close observers to handle connection status,
-	 * and trying to re-connect when disconnected.
+	 * Constructs the WebSocketSubjectConfig object, with open and close observers
+	 * to handle connection status, and trying to re-connect when disconnected.
 	 */
 	private readonly setUpWebSocketSubjectConfig = this.effect((trigger$) =>
 		trigger$.pipe(
@@ -98,9 +98,6 @@ export class SocketService extends ComponentStore<SocketState> {
 			tap(([, baseUri]) => {
 				const url = baseUri.replace(/^http/, 'ws') + 'ws';
 
-				if (DEBUG_MODE) {
-					console.log('Web socket url', url);
-				}
 				const config: WebSocketSubjectConfig<WsMessage> = {
 					url,
 					closeObserver: {
@@ -114,10 +111,11 @@ export class SocketService extends ComponentStore<SocketState> {
 					openObserver: {
 						next: (event) => {
 							DEBUG_MODE && console.log('openObserver', event);
-							this.statsStore.bumpConnections();
 
 							this.patchState({ connectError: undefined });
+
 							this.statsStore.setConnected(true);
+							this.statsStore.bumpConnections();
 
 							// Notify connected
 							this.connected.next();
@@ -173,7 +171,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	);
 
 	/**
-	 * Handles attempting to reconnect to the websocket until connected or the max retries have been reached.
+	 * Handles attempting to reconnect to the websocket until connected or
+	 * the max retries have been reached.
 	 */
 	private readonly tryReconnect = this.effect((trigger$) =>
 		trigger$.pipe(
@@ -196,7 +195,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	);
 
 	/**
-	 * Watches the queue for changes, and when the socket exists, sends the messages in the queue.
+	 * Watches the queue for changes, and when the socket exists,
+	 * sends the messages in the queue.
 	 */
 	readonly watchQueue = this.effect((queue$: Observable<WsMessageContent[]>) =>
 		queue$.pipe(
@@ -208,7 +208,7 @@ export class SocketService extends ComponentStore<SocketState> {
 					return;
 				}
 
-				while (queue.length > 0) {
+				while (queue.length) {
 					const msg = queue.shift();
 					assertDefined(msg);
 
@@ -267,7 +267,8 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * @returns A stream of messages of the specified type.
 	 */
 	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
-		// Send a message to the server to begin subscribe to each of the event types we're first to subscribe to.
+		// Send a message to the server to begin subscribe to each of the event types we're
+		// first to subscribe to.
 		this.subscribeIfFirst(eventType);
 
 		return this.messages$.pipe(
@@ -282,7 +283,8 @@ export class SocketService extends ComponentStore<SocketState> {
 			map((msg) => msg as T),
 			finalize(() => {
 				// Caller has unsubscribed from the stream.
-				// Send the message to the server to  unsubscribe for each eventType we're last to unsubscribe from.
+				// Send the message to the server to  unsubscribe for each eventType we're
+				// last to unsubscribe from.
 				this.unsubscribeIfLast(eventType);
 			}),
 		);
