@@ -35,7 +35,7 @@ const DEBUG_MODE = true;
 interface SocketState {
 	baseUri: string;
 	wsSubjectConfig?: WebSocketSubjectConfig<WsMessage>;
-	subscribeUnsubscribeMessages: WsMessageContent[];
+	subMessages: WsMessageContent[];
 	socket?: WebSocketSubject<WsMessage>;
 	connectError?: unknown;
 }
@@ -60,9 +60,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	 */
 	private messages$ = this.messages.asObservable();
 
-	private readonly subscribeUnsubscribeMessages$ = this.select(
-		({ subscribeUnsubscribeMessages }) => subscribeUnsubscribeMessages,
-	);
+	private readonly subMessages$ = this.select(({ subMessages }) => subMessages);
 
 	private readonly socket$ = this.select(({ socket }) => socket);
 
@@ -80,7 +78,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * A stream of messages to send, combined with whether the websocket is connected.
 	 * This will emit when the websocket is connected, and there are messages to send.
 	 */
-	private readonly toSend$ = combineLatest([this.isConnected$, this.subscribeUnsubscribeMessages$]).pipe(
+	private readonly toSend$ = combineLatest([this.isConnected$, this.subMessages$]).pipe(
 		filter(([isConnected, queue]) => isConnected && queue.length > 0),
 		map(([, queue]) => queue),
 	);
@@ -141,8 +139,8 @@ export class SocketService extends ComponentStore<SocketState> {
 				this.patchState({ socket });
 				return socket.pipe(
 					tap((msg) => {
-						this.statsStore.bumpMessagesReceived();
 						this.messages.next(msg);
+						this.statsStore.bumpMessagesReceived();
 					}),
 					catchError((err) => {
 						this.patchState({ connectError: err });
@@ -217,7 +215,7 @@ export class SocketService extends ComponentStore<SocketState> {
 						data: msg,
 					});
 
-					this.patchState({ subscribeUnsubscribeMessages: queue });
+					this.patchState({ subMessages: queue });
 				}
 			}),
 		),
@@ -226,9 +224,9 @@ export class SocketService extends ComponentStore<SocketState> {
 	/**
 	 * Adds a message to the queue to send to the server to subscribe or unsubscribe to/from a notification.
 	 */
-	private readonly queueSubscribeUnsubscribeMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
+	private readonly queueSubMessage = this.effect((msg$: Observable<SubscriptionMessage>) =>
 		msg$.pipe(
-			withLatestFrom(this.subscribeUnsubscribeMessages$),
+			withLatestFrom(this.subMessages$),
 			tap(([msg, queue]) => {
 				if (msg.isSubscribe) {
 					this.statsStore.bumpSubscriptionCount();
@@ -236,7 +234,7 @@ export class SocketService extends ComponentStore<SocketState> {
 					this.statsStore.dropSubscriptionCount();
 				}
 
-				this.patchState({ subscribeUnsubscribeMessages: [...queue, msg] });
+				this.patchState({ subMessages: [...queue, msg] });
 			}),
 		),
 	);
@@ -244,7 +242,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	constructor(@Inject(DOCUMENT) document: Document, private statsStore: SocketStatsStore) {
 		super({
 			baseUri: document.baseURI,
-			subscribeUnsubscribeMessages: [],
+			subMessages: [],
 		});
 
 		this.statsStore.setConnected(false);
@@ -256,33 +254,26 @@ export class SocketService extends ComponentStore<SocketState> {
 
 	/**
 	 * Begins subscribing to a type of events or events.
-	 * Returns an observable that will emit when the event is received.
-	 * @param eventType
-	 * @returns
-	 */
-	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
-		return this.setUpSubscription<T>(eventType);
-	}
-
-	/**
+	 *
+	 * Sets up the subscription with the server, sending a subscribe message, and returning a stream
+	 * of filtered messages.
+	 *
+	 * When the client closes the stream, sends an unsubscribe message to the server.
 	 *
 	 * @param eventType
-	 * @returns
+	 * @returns A stream of messages of the specified type.
 	 */
-	private setUpSubscription<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
+	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
 		const msg = {
 			eventType,
 			isSubscribe: true,
 		} as SubscriptionMessage;
 
 		// Send a message to the server to begin subscribe to the event type(s).
-		this.queueSubscribeUnsubscribeMessage(msg);
+		this.queueSubMessage(msg);
 
 		return this.messages$.pipe(
 			map((msg) => msg as SubscriptionEvent),
-			tap((msg) => {
-				DEBUG_MODE && console.log('received notification', msg);
-			}),
 			filter((msg) => {
 				if (typeof eventType === 'string') {
 					return msg.eventType === eventType;
@@ -298,7 +289,7 @@ export class SocketService extends ComponentStore<SocketState> {
 					...msg,
 					isSubscribe: false,
 				};
-				this.queueSubscribeUnsubscribeMessage(unsubscribeMessage);
+				this.queueSubMessage(unsubscribeMessage);
 			}),
 		);
 	}
