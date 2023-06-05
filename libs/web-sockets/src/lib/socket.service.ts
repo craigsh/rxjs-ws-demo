@@ -256,7 +256,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	}
 
 	/**
-	 * Begins subscribing to a type of events or events.
+	 * Begins listening to a type of events or events.
 	 *
 	 * Sets up the subscription with the server, sending a subscribe message, and returning a stream
 	 * of filtered messages.
@@ -266,7 +266,7 @@ export class SocketService extends ComponentStore<SocketState> {
 	 * @param eventType
 	 * @returns A stream of messages of the specified type.
 	 */
-	subscribeToEventType<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
+	listen<T extends SubscriptionEvent>(eventType: EventType | EventType[]): Observable<T> {
 		// Send a message to the server to begin subscribe to each of the event types we're
 		// first to subscribe to.
 		this.subscribeIfFirst(eventType);

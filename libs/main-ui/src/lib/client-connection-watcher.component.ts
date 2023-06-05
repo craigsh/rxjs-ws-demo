@@ -86,7 +86,7 @@ export class ClientConnectionWatcherComponent extends ComponentStore<ClientConne
 	private readonly watchClientConnections = this.effect((trigger$) =>
 		trigger$.pipe(
 			switchMap(() =>
-				this.socket.subscribeToEventType<SubscriptionEvent>(['connect', 'disconnect']).pipe(
+				this.socket.listen<SubscriptionEvent>(['connect', 'disconnect']).pipe(
 					withLatestFrom(this.connectionMessages$),
 					tap(([event, connectionMessages]) => {
 						const connectionMessage = `Client ${

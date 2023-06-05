@@ -141,7 +141,7 @@ export class MessengerComponent extends ComponentStore<MessengerState> {
 	readonly listenForMessages = this.effect((trigger$) =>
 		trigger$.pipe(
 			switchMap(() =>
-				this.socketService.subscribeToEventType<SubscriptionEvent<Message>>('message').pipe(
+				this.socketService.listen<SubscriptionEvent<Message>>('message').pipe(
 					withLatestFrom(this.messages$),
 					tap(([message, messages]) => {
 						this.patchState({ messages: [...messages, message.body].slice(-MAX_MESSAGES) });
